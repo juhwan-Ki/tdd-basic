@@ -43,7 +43,7 @@ public class PointServiceTest {
     private PointService service;  // Mock으로 실제 객체 주입
 
     @Test
-    @DisplayName("포인트가 0인 사용자가 최소 충전 금액(1000원)을 충전한다.")
+    @DisplayName("포인트가 0인 사용자가 최소 충전 금액(1000원)을 충전하면 잔액이 1000원이 된다.")
     void givenZeroBalance_whenChargeMinimumAmount_thenBalanceIs1000() {
         // given
         Long userId = 1L;
@@ -58,12 +58,11 @@ public class PointServiceTest {
                 .thenReturn(expectedHistory);
 
         // when
-        PointHistory result = service.charge(userId, chargeAmount);
+        UserPoint result = service.charge(userId, chargeAmount);
 
         // then
-        assertThat(result)
-                .extracting(PointHistory::amount, PointHistory::type, PointHistory::userId)
-                .containsExactly(chargeAmount, TransactionType.CHARGE, userId);
+        assertThat(result.point()).isEqualTo(chargeAmount);
+        assertThat(result.id()).isEqualTo(userId);
 
         verify(userPointTable).selectById(eq(userId));
         verify(userPointTable).insertOrUpdate(eq(userId), eq(chargeAmount));
@@ -71,8 +70,8 @@ public class PointServiceTest {
     }
 
     @Test
-    @DisplayName("포인트가 0인 사용자가 최대 충전 금액(10만원)을 충전한다.")
-    void givenZeroBalance_whenChargeMaximumAmount_thenBalanceIs100000() {
+    @DisplayName("포인트가 0인 사용자가 최대 충전 금액(10만원)을 충전하면 잔액이 10만원이 된다.")
+    void givenZeroBalance_whenChargeMaximumAmount_thenBalanceIs100_000() {
         // given
         Long userId = 1L;
         long chargeAmount = 100000L;
@@ -86,12 +85,11 @@ public class PointServiceTest {
                 .thenReturn(expectedHistory);
 
         // when
-        PointHistory result = service.charge(userId, chargeAmount);
+        UserPoint result = service.charge(userId, chargeAmount);
 
         // then
-        assertThat(result)
-                .extracting(PointHistory::amount, PointHistory::type, PointHistory::userId)
-                .containsExactly(chargeAmount, TransactionType.CHARGE, userId);
+        assertThat(result.point()).isEqualTo(chargeAmount);
+        assertThat(result.id()).isEqualTo(userId);
 
         verify(userPointTable).selectById(eq(userId));
         verify(userPointTable).insertOrUpdate(eq(userId), eq(chargeAmount));
@@ -99,7 +97,7 @@ public class PointServiceTest {
     }
 
     @Test
-    @DisplayName("보유 포인트가 있는 사용자가 포인트를 충전한다")
+    @DisplayName("보유 포인트가 있는 사용자가 포인트를 충전하면 포인트 충전값 만큼 증가한다")
     void givenSomeBalance_whenChargeN_thenBalanceIncreasesByN() {
         // given
         Long userId = 1L;
@@ -116,12 +114,11 @@ public class PointServiceTest {
         when(pointHistoryTable.insert(eq(userId), eq(chargeAmount), eq(TransactionType.CHARGE), anyLong())).thenReturn(expectedHistory);
 
         // when
-        PointHistory result = service.charge(userId, chargeAmount);
+        UserPoint result = service.charge(userId, chargeAmount);
 
         // then
-        assertThat(result)
-                .extracting(PointHistory::amount, PointHistory::type, PointHistory::userId)
-                .containsExactly(chargeAmount, TransactionType.CHARGE, userId);
+        assertThat(result.point()).isEqualTo(updatedAmount);
+        assertThat(result.id()).isEqualTo(userId);
 
         verify(userPointTable).selectById(eq(userId));
         verify(userPointTable).insertOrUpdate(eq(userId), eq(updatedAmount));

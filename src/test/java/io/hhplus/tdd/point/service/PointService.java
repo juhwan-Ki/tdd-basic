@@ -34,7 +34,7 @@ public class PointService {
     }
 
     // 최소 충전 금액은 1000원 최대 충전 금액은 10만원으로 한다
-    public PointHistory charge(Long userId, long chargeAmount) {
+    public UserPoint charge(Long userId, long chargeAmount) {
         if(userId == null || userId <= 0)
             throw new IllegalArgumentException("잘못된 값이 입력되었습니다. userId : " + userId);
 
@@ -51,17 +51,17 @@ public class PointService {
 
         // 잔액 충전 중이나 이력 업데이트시 에러날 때 rollback
         try {
-            pointTable.insertOrUpdate(userId, updatedBalance);
-            //  잔액을 넣는 것이 아닌 이력 관리를 위해 충전 금액을 넣음
-            return pointHistoryTable.insert(userId, chargeAmount, TransactionType.CHARGE, System.currentTimeMillis());
-        } catch (Exception e) {
+            UserPoint updatedPoint = pointTable.insertOrUpdate(userId, updatedBalance);
             try {
+                //  잔액을 넣는 것이 아닌 이력 관리를 위해 충전 금액을 넣음
+                pointHistoryTable.insert(userId, chargeAmount, TransactionType.CHARGE, System.currentTimeMillis());
+            } catch (Exception e) {
                 rollback(currentPoint);
-            } catch (Exception rollbackEx) {
-                // 롤백 실패는 로그만 남기고 무시하거나 합쳐서 던짐
-                throw new PointSaveException("포인트 저장 실패, 롤백 중에도 오류 발생", rollbackEx);
+                throw new PointSaveException("포인트 이력 저장 실패", e);
             }
-            throw new PointSaveException("포인트 저장 중 오류 발생", e);
+            return updatedPoint;
+        } catch (Exception e) {
+            throw new PointSaveException("포인트 잔액 저장 실패", e);
         }
     }
 
