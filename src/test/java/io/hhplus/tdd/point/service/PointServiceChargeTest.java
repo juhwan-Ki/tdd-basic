@@ -22,7 +22,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class PointServiceTest {
+@DisplayName("PointService - 포인트 충전")
+public class PointServiceChargeTest {
 
     /**
      * - PATCH  `/point/{id}/charge` : 포인트를 충전한다.
@@ -153,7 +154,7 @@ public class PointServiceTest {
 
     @Test
     @DisplayName("userId가 잘못된 데이터로 들어오면 에러를 발생 시킨다")
-    void givenInvalidUserId_whenCharge_thenThrow() {
+    void givenInvalidUserId_whenCharge_thenThrowsException() {
         // given
         long chargeAmount = 100_000L;
         // when&then
@@ -250,7 +251,7 @@ public class PointServiceTest {
 
     @Test
     @DisplayName("이력 저장 실패 시 예외를 발생하고 포인트를 롤백 처리한다")
-    void whenHistorySaveFails_thenRollbackBalanceAndThrow() {
+    void whenHistorySaveFails_thenRollbackBalanceAndThrowsException() {
         // given
         long userId = 1L;
         long chargeAmount = 1000L;
@@ -271,5 +272,22 @@ public class PointServiceTest {
         inOrder.verify(userPointTable).insertOrUpdate(userId, 1000L);
         inOrder.verify(pointHistoryTable).insert(eq(userId), eq(chargeAmount), eq(TransactionType.CHARGE), anyLong());
         inOrder.verify(userPointTable).insertOrUpdate(userId, 0L); // 롤백
+    }
+
+    @Test
+    @DisplayName("충전 단위에 맞지 않으면 포인트 충전 시 예외 발생")
+    void givenInvalidChargeUnit_whenCharge_thenThrowsException() {
+        // given
+        long userId = 1L;
+
+        // when&then
+        assertThatThrownBy(() -> service.charge(userId, 100))
+                .isInstanceOf(PointValidationException.class);
+
+        assertThatThrownBy(() -> service.charge(userId, 999))
+                .isInstanceOf(PointValidationException.class);
+
+        assertThatThrownBy(() -> service.charge(userId, 1001))
+                .isInstanceOf(PointValidationException.class);
     }
 }
