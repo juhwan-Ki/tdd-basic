@@ -2,7 +2,6 @@ package io.hhplus.tdd.point.service;
 
 import io.hhplus.tdd.database.PointHistoryTable;
 import io.hhplus.tdd.database.UserPointTable;
-import io.hhplus.tdd.point.PointHistory;
 import io.hhplus.tdd.point.TransactionType;
 import io.hhplus.tdd.point.UserPoint;
 import io.hhplus.tdd.point.exception.PointSaveException;
@@ -15,11 +14,10 @@ public class PointService {
     private final UserPointTable pointTable;
     private final PointHistoryTable pointHistoryTable;
 
-    private final int MIN_CHARGE_AMOUNT = 1000;
-    private final int MAX_CHARGE_AMOUNT = 100_000;
-    private final int MAX_POINT_BLANCE = 1_000_000;
-    private final int POINT_CHARGE_UNIT = 1000; // 포인트 충전 단위
-
+    private final int MIN_AMOUNT = 1000; // 최소 충전 및 사용 포인트
+    private final int MAX_AMOUNT = 1_000_000; // 최대 충전 및 사용 포인트
+    private final int MAX_POINT_BLANCE = 1_000_000; // 최대 보유 포인트
+    private final int POINT_UNIT = 1000; // 포인트 충전 및 사용 최소 단위
 
     private final static Logger logger = LoggerFactory.getLogger(PointService.class);
     
@@ -36,19 +34,19 @@ public class PointService {
         return userPoint.point();
     }
 
-    // 최소 충전 금액은 1000원 최대 충전 금액은 10만원으로 한다
+    // 최소 충전 금액은 1000원 최대 충전 금액은 100만원으로 한다
     public UserPoint charge(Long userId, long chargeAmount) {
         if(userId == null || userId <= 0)
             throw new IllegalArgumentException("잘못된 값이 입력되었습니다. userId : " + userId);
 
-        if(chargeAmount < MIN_CHARGE_AMOUNT)
-            throw new PointValidationException("충전 금액은 " + MIN_CHARGE_AMOUNT + "원 보다 커야 합니다");
+        if(chargeAmount < MIN_AMOUNT)
+            throw new PointValidationException("충전 금액은 " + MIN_AMOUNT + "원 보다 커야 합니다");
 
-        if(chargeAmount > MAX_CHARGE_AMOUNT)
-            throw new PointValidationException("충전 금액은 " + MAX_CHARGE_AMOUNT + "원 보다 클 수 없습니다");
+        if(chargeAmount > MAX_AMOUNT)
+            throw new PointValidationException("충전 금액은 " + MAX_AMOUNT + "원 보다 클 수 없습니다");
 
-        if(chargeAmount % POINT_CHARGE_UNIT != 0)
-            throw new PointValidationException("충전 금액은 " + POINT_CHARGE_UNIT + "원 단위 여야 합니다");
+        if(chargeAmount % POINT_UNIT != 0)
+            throw new PointValidationException("충전 금액은 " + POINT_UNIT + "원 단위 여야 합니다");
 
         UserPoint currentPoint = pointTable.selectById(userId);
         long updatedBalance = currentPoint.point() + chargeAmount;
@@ -68,6 +66,45 @@ public class PointService {
             return updatedPoint;
         } catch (Exception e) {
             throw new PointSaveException("포인트 잔액 저장 실패", e);
+        }
+    }
+
+    public UserPoint use(Long userId, long useAmount) {
+        if(userId == null || userId <= 0)
+            throw new IllegalArgumentException("잘못된 값이 입력되었습니다. userId : " + userId);
+
+        if(useAmount < MIN_AMOUNT)
+            throw new PointValidationException("사용 금액은 " + MIN_AMOUNT + "원 보다 커야 합니다");
+
+        if(useAmount > MAX_AMOUNT)
+            throw new PointValidationException("사용 금액은 " + MAX_AMOUNT + "원 보다 클 수 없습니다");
+
+        if(useAmount % POINT_UNIT != 0)
+            throw new PointValidationException("사용 금액은 " + POINT_UNIT + "원 단위 여야 합니다");
+
+        UserPoint currentPoint = pointTable.selectById(userId);
+        long currentBalance = currentPoint.point();
+        if(currentBalance <= 0)
+            throw new PointValidationException("사용 가능한 포인트가 없습니다.");
+
+        long updatedAmount = currentBalance - useAmount;
+        if(updatedAmount < 0)
+            throw new PointValidationException("사용 가능한 포인트가 부족합니다. 사용 가능 포인트 : " + currentBalance);
+
+        try
+        {
+            UserPoint updatedPoint = pointTable.insertOrUpdate(userId, updatedAmount);
+
+            try {
+                pointHistoryTable.insert(userId, useAmount, TransactionType.USE, System.currentTimeMillis());
+            } catch (Exception e) {
+                rollback(currentPoint);
+                throw new PointSaveException("포인트 이력 저장 실패", e);
+            }
+
+            return updatedPoint;
+        } catch (Exception e) {
+            throw new PointSaveException("포인트 사용 실패", e);
         }
     }
 

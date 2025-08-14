@@ -197,7 +197,7 @@ public class PointServiceChargeTest {
                 .isInstanceOf(PointValidationException.class);
     }
 
-    // 최대 충전 금액은 10만원으로 한다
+    // 최대 충전 금액은 100만원으로 한다
     @Test
     @DisplayName("충전 금액이 최대 충전 금액보다 많은 경우 예외를 발생한다")
     void givenBelowMaximumAmount_whenCharge_thenThrowsException() {
@@ -205,7 +205,7 @@ public class PointServiceChargeTest {
         Long userId = 1L;
 
         // when&then
-        assertThatThrownBy(() -> service.charge(userId, 1000000))
+        assertThatThrownBy(() -> service.charge(userId, 1000001))
                 .isInstanceOf(PointValidationException.class);
 
         assertThatThrownBy(() -> service.charge(userId, 99999999))
@@ -232,7 +232,7 @@ public class PointServiceChargeTest {
     @DisplayName("포인트 저장 실패 시 예외를 발생시키고 이력은 호출하지 않는다")
     void whenBalancePersistenceFails_thenThrowsAndNoHistory() {
         // given
-        long userId = 1L;
+        Long userId = 1L;
         long chargeAmount = 1000L;
 
         when(userPointTable.selectById(userId))
@@ -253,7 +253,7 @@ public class PointServiceChargeTest {
     @DisplayName("이력 저장 실패 시 예외를 발생하고 포인트를 롤백 처리한다")
     void whenHistorySaveFails_thenRollbackBalanceAndThrowsException() {
         // given
-        long userId = 1L;
+        Long userId = 1L;
         long chargeAmount = 1000L;
         UserPoint initPoint = new UserPoint(userId, 0L, System.currentTimeMillis());
         UserPoint updatePoint = new UserPoint(userId, chargeAmount, System.currentTimeMillis());
@@ -275,10 +275,10 @@ public class PointServiceChargeTest {
     }
 
     @Test
-    @DisplayName("충전 단위에 맞지 않으면 포인트 충전 시 예외 발생")
+    @DisplayName("충전 단위에 맞지 않으면 포인트 충전 시 예외를 발생한다")
     void givenInvalidChargeUnit_whenCharge_thenThrowsException() {
         // given
-        long userId = 1L;
+        Long userId = 1L;
 
         // when&then
         assertThatThrownBy(() -> service.charge(userId, 100))
