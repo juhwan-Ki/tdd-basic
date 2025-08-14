@@ -8,9 +8,7 @@ import io.hhplus.tdd.point.exception.PointSaveException;
 import io.hhplus.tdd.point.exception.PointValidationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
 
-@Service
 public class PointService {
 
     private final UserPointTable pointTable;
@@ -19,6 +17,9 @@ public class PointService {
     private final int MIN_CHARGE_AMOUNT = 1000;
     private final int MAX_CHARGE_AMOUNT = 100_000;
     private final int MAX_POINT_BLANCE = 1_000_000;
+    private final int POINT_CHARGE_UNIT = 1000; // 포인트 충전 단위
+
+
     private final static Logger logger = LoggerFactory.getLogger(PointService.class);
     
     public PointService(UserPointTable pointTable, PointHistoryTable pointHistoryTable) {
@@ -44,6 +45,9 @@ public class PointService {
 
         if(chargeAmount > MAX_CHARGE_AMOUNT)
             throw new PointValidationException("충전 금액은 " + MAX_CHARGE_AMOUNT + "원 보다 클 수 없습니다");
+
+        if(chargeAmount % POINT_CHARGE_UNIT != 0)
+            throw new PointValidationException("충전 금액은 " + POINT_CHARGE_UNIT + "원 단위 여야 합니다");
 
         UserPoint currentPoint = pointTable.selectById(userId);
         long updatedBalance = currentPoint.point() + chargeAmount;
