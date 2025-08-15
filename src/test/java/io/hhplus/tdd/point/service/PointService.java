@@ -2,12 +2,16 @@ package io.hhplus.tdd.point.service;
 
 import io.hhplus.tdd.database.PointHistoryTable;
 import io.hhplus.tdd.database.UserPointTable;
+import io.hhplus.tdd.point.PointHistory;
 import io.hhplus.tdd.point.PointPolicy;
 import io.hhplus.tdd.point.TransactionType;
 import io.hhplus.tdd.point.UserPoint;
 import io.hhplus.tdd.point.exception.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Comparator;
+import java.util.List;
 
 import static io.hhplus.tdd.point.PointPolicy.*;
 
@@ -126,6 +130,21 @@ public class PointService {
             pointTable.insertOrUpdate(rollbackPoint.id(), rollbackPoint.point());
         } catch (Exception ex) {
             logger.error("포인트 롤백 실패 userId={}, snapshot={}", rollbackPoint.id(), rollbackPoint.point(), ex);
+        }
+    }
+
+    public List<PointHistory> getHistories(Long userId) {
+        validateUserId(userId);
+        UserPoint userPoint = pointTable.selectById(userId);
+        try {
+            List<PointHistory> pointHistories = pointHistoryTable.selectAllByUserId(userId);
+            if(pointHistories.isEmpty())
+                return pointHistories;
+
+            return pointHistories.stream().sorted(Comparator.comparing(PointHistory::id)).toList();
+        } catch (Exception e) {
+            logger.error("포인트 내역 조회 실패 userId={}", userId, e);
+            throw new PointHistoryRetrieveException("포인트 내역 조회 실패", e);
         }
     }
 }

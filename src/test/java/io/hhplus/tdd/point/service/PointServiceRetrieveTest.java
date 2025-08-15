@@ -45,7 +45,7 @@ public class PointServiceRetrieveTest {
 
         // then
         assertThat(currentPoint).isEqualTo(point);
-        verify(userPointTable, times(1)).selectById(userId);
+        verify(userPointTable).selectById(userId);
         verifyNoInteractions(pointHistoryTable); // 조회는 히스토리를 건드리지 않음
     }
 
