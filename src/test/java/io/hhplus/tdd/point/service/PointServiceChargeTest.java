@@ -10,6 +10,9 @@ import io.hhplus.tdd.point.exception.PointValidationException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -152,64 +155,62 @@ public class PointServiceChargeTest {
         inOrder.verify(pointHistoryTable).insert(eq(userId), eq(30000L), eq(TransactionType.CHARGE), anyLong());
     }
 
-    @Test
+    @ParameterizedTest
     @DisplayName("userId가 잘못된 데이터로 들어오면 에러를 발생 시킨다")
-    void givenInvalidUserId_whenCharge_thenThrowsException() {
+    @NullSource
+    @ValueSource(longs = {-1000L, -1L, 0L})
+    void givenInvalidUserId_whenCharge_thenThrowsException(Long userId) {
         // given
         long chargeAmount = 100_000L;
         // when&then
-        assertThatThrownBy(() -> service.charge(-1L, chargeAmount))
+        assertThatThrownBy(() -> service.charge(userId, chargeAmount))
                 .isInstanceOf(IllegalArgumentException.class);
 
-        assertThatThrownBy(() -> service.charge(0L, chargeAmount))
-                .isInstanceOf(IllegalArgumentException.class);
-
-        assertThatThrownBy(() -> service.charge(null, chargeAmount))
-                .isInstanceOf(IllegalArgumentException.class);
+        verifyNoInteractions(userPointTable, pointHistoryTable);
     }
 
-    @Test
+    @ParameterizedTest
     @DisplayName("충전 금액이 양수가 아닌 경우 예외를 발생한다")
-    void givenNonPositiveAmount_whenCharge_thenThrowsException() {
+    @ValueSource(longs = {-1000L, -1L, 0L})
+    void givenNonPositiveAmount_whenCharge_thenThrowsException(long chargeAmount) {
         // given
         Long userId = 1L;
 
         // when&then
-        assertThatThrownBy(() -> service.charge(userId, 0L))
+        assertThatThrownBy(() -> service.charge(userId, chargeAmount))
                 .isInstanceOf(PointValidationException.class);
 
-        assertThatThrownBy(() -> service.charge(userId, -100L))
-                .isInstanceOf(PointValidationException.class);
+        verifyNoInteractions(userPointTable, pointHistoryTable);
     }
 
     // 최소 충전 금액은 1000원으로 한다
-    @Test
+    @ParameterizedTest
     @DisplayName("충전 금액이 최소 충전 금액보다 적은 경우 예외를 발생한다")
-    void givenBelowMinimumAmount_whenCharge_thenThrowsException() {
+    @ValueSource(longs = {500L, -1L, 9999L, 1000L})
+    void givenBelowMinimumAmount_whenCharge_thenThrowsException(long chargeAmount) {
         // given
         Long userId = 1L;
 
         // when&then
-        assertThatThrownBy(() -> service.charge(userId, 500L))
+        assertThatThrownBy(() -> service.charge(userId, chargeAmount))
                 .isInstanceOf(PointValidationException.class);
 
-        assertThatThrownBy(() -> service.charge(userId, 100L))
-                .isInstanceOf(PointValidationException.class);
+        verifyNoInteractions(userPointTable, pointHistoryTable);
     }
 
     // 최대 충전 금액은 100만원으로 한다
-    @Test
+    @ParameterizedTest
     @DisplayName("충전 금액이 최대 충전 금액보다 많은 경우 예외를 발생한다")
-    void givenBelowMaximumAmount_whenCharge_thenThrowsException() {
+    @ValueSource(longs = {1000001L, 99999999L})
+    void givenBelowMaximumAmount_whenCharge_thenThrowsException(long chargeAmount) {
         // given
         Long userId = 1L;
 
         // when&then
-        assertThatThrownBy(() -> service.charge(userId, 1000001))
+        assertThatThrownBy(() -> service.charge(userId, chargeAmount))
                 .isInstanceOf(PointValidationException.class);
 
-        assertThatThrownBy(() -> service.charge(userId, 99999999))
-                .isInstanceOf(PointValidationException.class);
+        verifyNoInteractions(userPointTable, pointHistoryTable);
     }
 
     // 최대 보유 가능 포인트는 100만 포인트로 한다
@@ -226,6 +227,8 @@ public class PointServiceChargeTest {
         // when&then
         assertThatThrownBy(() -> service.charge(userId, chargeAmount))
                 .isInstanceOf(PointValidationException.class);
+
+        verifyNoInteractions(pointHistoryTable);
     }
 
     @Test
@@ -245,8 +248,7 @@ public class PointServiceChargeTest {
         assertThatThrownBy(() -> service.charge(userId, chargeAmount))
                 .isInstanceOf(PointSaveException.class);
 
-        verify(pointHistoryTable, never())
-                .insert(anyLong(), anyLong(), any(), anyLong());
+        verifyNoInteractions(pointHistoryTable);
     }
 
     @Test
@@ -274,20 +276,17 @@ public class PointServiceChargeTest {
         inOrder.verify(userPointTable).insertOrUpdate(userId, 0L); // 롤백
     }
 
-    @Test
+    @ParameterizedTest
     @DisplayName("충전 단위에 맞지 않으면 포인트 충전 시 예외를 발생한다")
-    void givenInvalidChargeUnit_whenCharge_thenThrowsException() {
+    @ValueSource(longs = {100L, 9999L, 10001L, 1000L, 19999L, 20001L})
+    void givenInvalidChargeUnit_whenCharge_thenThrowsException(long chargeAmount) {
         // given
         Long userId = 1L;
 
         // when&then
-        assertThatThrownBy(() -> service.charge(userId, 100))
+        assertThatThrownBy(() -> service.charge(userId, chargeAmount))
                 .isInstanceOf(PointValidationException.class);
 
-        assertThatThrownBy(() -> service.charge(userId, 999))
-                .isInstanceOf(PointValidationException.class);
-
-        assertThatThrownBy(() -> service.charge(userId, 1001))
-                .isInstanceOf(PointValidationException.class);
+        verifyNoInteractions(userPointTable, pointHistoryTable);
     }
 }

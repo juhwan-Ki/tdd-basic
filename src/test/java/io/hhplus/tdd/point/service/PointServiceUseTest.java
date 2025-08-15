@@ -10,6 +10,9 @@ import io.hhplus.tdd.point.exception.PointValidationException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -116,20 +119,18 @@ public class PointServiceUseTest {
         verify(pointHistoryTable).insert(eq(userId), eq(2000L), eq(TransactionType.USE), anyLong());
     }
 
-    @Test
+    @ParameterizedTest
     @DisplayName("userId가 잘못된 데이터로 들어오면 에러를 발생 시킨다")
-    void givenInvalidUserId_whenCharge_thenThrow() {
+    @NullSource
+    @ValueSource(longs = {-1L, -192481294821L, 0 })
+    void givenInvalidUserId_whenCharge_thenThrow(Long userId) {
         // given
         long useAmount = 100_000L;
         // when&then
-        assertThatThrownBy(() -> service.use(-1L, useAmount))
+        assertThatThrownBy(() -> service.use(userId, useAmount))
                 .isInstanceOf(IllegalArgumentException.class);
 
-        assertThatThrownBy(() -> service.use(0L, useAmount))
-                .isInstanceOf(IllegalArgumentException.class);
-
-        assertThatThrownBy(() -> service.use(null, useAmount))
-                .isInstanceOf(IllegalArgumentException.class);
+        verifyNoInteractions(userPointTable, pointHistoryTable);
     }
 
     @Test
@@ -144,6 +145,8 @@ public class PointServiceUseTest {
         // when&then
         assertThatThrownBy(() -> service.use(userId, useAmount))
                 .isInstanceOf(PointValidationException.class);
+
+        verifyNoInteractions(pointHistoryTable);
     }
 
     @Test
@@ -158,48 +161,50 @@ public class PointServiceUseTest {
         // when&then
         assertThatThrownBy(() -> service.use(userId, useAmount))
                 .isInstanceOf(PointValidationException.class);
+
+        verifyNoInteractions(pointHistoryTable);
     }
 
-    @Test
+    @ParameterizedTest
     @DisplayName("사용 포인트가 0보다 작은 경우 예외를 발생한다")
-    void givenInvalidPoint_whenUsePoints_thenThrowsException() {
+    @ValueSource(longs = {-1L, -99999L, 0 })
+    void givenInvalidPoint_whenUsePoints_thenThrowsException(long useAmount) {
         // given
         Long userId = 1L;
 
         // when&then
-        assertThatThrownBy(() -> service.use(userId, -1))
+        assertThatThrownBy(() -> service.use(userId, useAmount))
                 .isInstanceOf(PointValidationException.class);
 
-        assertThatThrownBy(() -> service.use(userId, 0))
-                .isInstanceOf(PointValidationException.class);
+        verifyNoInteractions(userPointTable, pointHistoryTable);
     }
 
-    @Test
+    @ParameterizedTest
     @DisplayName("사용 포인트가 최소 사용 포인트 보다 작은 경우 예외를 발생한다")
-    void givenUserExceedsMinUseLimit_whenUsePoints_thenThrowsException() {
+    @ValueSource(longs = {100L, 1L, 11L, 99L})
+    void givenUserExceedsMinUseLimit_whenUsePoints_thenThrowsException(long useAmount) {
         // given
         Long userId = 1L;
 
         // when&then
-        assertThatThrownBy(() -> service.use(userId, 100L))
+        assertThatThrownBy(() -> service.use(userId, useAmount))
                 .isInstanceOf(PointValidationException.class);
+
+        verifyNoInteractions(userPointTable, pointHistoryTable);
     }
 
-    @Test
+    @ParameterizedTest
     @DisplayName("사용 포인트가 최대 포인트를 초과할 경우 예외를 발생한다")
-    void givenUserExceedsMaxUseLimit_whenUsePoints_thenThrowsException() {
+    @ValueSource(longs = {100000000000000000L, 1000001L, Long.MAX_VALUE})
+    void givenUserExceedsMaxUseLimit_whenUsePoints_thenThrowsException(long useAmount) {
         // given
         Long userId = 1L;
 
         // when&then
-        assertThatThrownBy(() -> service.use(userId, 100000000000000000L))
+        assertThatThrownBy(() -> service.use(userId, useAmount))
                 .isInstanceOf(PointValidationException.class);
 
-        assertThatThrownBy(() -> service.use(userId, 1000001L))
-                .isInstanceOf(PointValidationException.class);
-
-        assertThatThrownBy(() -> service.use(userId, Long.MAX_VALUE))
-                .isInstanceOf(PointValidationException.class);
+        verifyNoInteractions(userPointTable, pointHistoryTable);
     }
 
     @Test
@@ -250,23 +255,17 @@ public class PointServiceUseTest {
         inOrder.verify(userPointTable).insertOrUpdate(userId, initAmount); // 롤백
     }
 
-    @Test
+    @ParameterizedTest
     @DisplayName("사용 단위에 맞지 않으면 포인트 사용 시 예외를 발생한다")
-    void givenInvalidUseUnit_whenUse_thenThrowsException() {
+    @ValueSource(longs = {-1L, 100, 999, 1001, 10001, Long.MAX_VALUE})
+    void givenInvalidUseUnit_whenUse_thenThrowsException(long useAmount) {
         // given
         Long userId = 1L;
 
         // when&then
-        assertThatThrownBy(() -> service.use(userId, -1))
+        assertThatThrownBy(() -> service.use(userId, useAmount))
                 .isInstanceOf(PointValidationException.class);
 
-        assertThatThrownBy(() -> service.use(userId, 100))
-                .isInstanceOf(PointValidationException.class);
-
-        assertThatThrownBy(() -> service.use(userId, 999))
-                .isInstanceOf(PointValidationException.class);
-
-        assertThatThrownBy(() -> service.use(userId, 1001))
-                .isInstanceOf(PointValidationException.class);
+        verifyNoInteractions(userPointTable, pointHistoryTable);
     }
 }
