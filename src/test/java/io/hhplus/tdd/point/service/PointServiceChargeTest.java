@@ -44,11 +44,11 @@ public class PointServiceChargeTest {
     private PointService service;  // Mock으로 실제 객체 주입
 
     @Test
-    @DisplayName("포인트가 0인 사용자가 최소 충전 금액(1000원)을 충전하면 잔액이 1000원이 된다.")
+    @DisplayName("포인트가 0인 사용자가 최소 충전 금액(10000원)을 충전하면 잔액이 1000원이 된다.")
     void givenZeroBalance_whenChargeMinimumAmount_thenBalanceIs1000() {
         // given
         Long userId = 1L;
-        long chargeAmount = 1000L;
+        long chargeAmount = 10000L;
         UserPoint initPoint = UserPoint.empty(userId);  // 초기 상태
         UserPoint updatedPoint = new UserPoint(userId, chargeAmount, System.currentTimeMillis());  // 업데이트된 상태
         PointHistory expectedHistory = new PointHistory(1L, userId, chargeAmount, TransactionType.CHARGE, System.currentTimeMillis());  // 예상 결과
@@ -102,8 +102,8 @@ public class PointServiceChargeTest {
     void givenSomeBalance_whenChargeN_thenBalanceIncreasesByN() {
         // given
         Long userId = 1L;
-        long existingAmount = 2000L;
-        long chargeAmount   = 1000L;
+        long existingAmount = 20000L;
+        long chargeAmount   = 10000L;
         long updatedAmount  = existingAmount + chargeAmount;
 
         UserPoint currentPoint = new UserPoint(userId, existingAmount, System.currentTimeMillis());  // 기존 상태
@@ -132,24 +132,24 @@ public class PointServiceChargeTest {
         // given
         Long userId = 1L;
         when(userPointTable.selectById(eq(userId)))
-                .thenReturn(new UserPoint(userId, 1000L, System.currentTimeMillis()))
-                .thenReturn(new UserPoint(userId, 2000L, System.currentTimeMillis()))
-                .thenReturn(new UserPoint(userId, 4000L, System.currentTimeMillis()));
+                .thenReturn(new UserPoint(userId, 10000L, System.currentTimeMillis()))
+                .thenReturn(new UserPoint(userId, 20000L, System.currentTimeMillis()))
+                .thenReturn(new UserPoint(userId, 40000L, System.currentTimeMillis()));
         when(pointHistoryTable.insert(eq(userId), anyLong(), eq(TransactionType.CHARGE), anyLong()))
                 .thenAnswer(inv -> new PointHistory(0L, userId, (Long) inv.getArgument(1), TransactionType.CHARGE, System.currentTimeMillis()));
         // when
-        service.charge(userId, 1000L);
-        service.charge(userId, 2000L);
-        service.charge(userId, 3000L);
+        service.charge(userId, 10000L);
+        service.charge(userId, 20000L);
+        service.charge(userId, 30000L);
 
         // then
         InOrder inOrder = inOrder(userPointTable, pointHistoryTable);
-        inOrder.verify(userPointTable).insertOrUpdate(eq(userId), eq(2000L));
-        inOrder.verify(pointHistoryTable).insert(eq(userId), eq(1000L), eq(TransactionType.CHARGE), anyLong());
-        inOrder.verify(userPointTable).insertOrUpdate(eq(userId), eq(4000L));
-        inOrder.verify(pointHistoryTable).insert(eq(userId), eq(2000L), eq(TransactionType.CHARGE), anyLong());
-        inOrder.verify(userPointTable).insertOrUpdate(eq(userId), eq(7000L));
-        inOrder.verify(pointHistoryTable).insert(eq(userId), eq(3000L), eq(TransactionType.CHARGE), anyLong());
+        inOrder.verify(userPointTable).insertOrUpdate(eq(userId), eq(20000L));
+        inOrder.verify(pointHistoryTable).insert(eq(userId), eq(10000L), eq(TransactionType.CHARGE), anyLong());
+        inOrder.verify(userPointTable).insertOrUpdate(eq(userId), eq(40000L));
+        inOrder.verify(pointHistoryTable).insert(eq(userId), eq(20000L), eq(TransactionType.CHARGE), anyLong());
+        inOrder.verify(userPointTable).insertOrUpdate(eq(userId), eq(70000L));
+        inOrder.verify(pointHistoryTable).insert(eq(userId), eq(30000L), eq(TransactionType.CHARGE), anyLong());
     }
 
     @Test
@@ -233,7 +233,7 @@ public class PointServiceChargeTest {
     void whenBalancePersistenceFails_thenThrowsAndNoHistory() {
         // given
         Long userId = 1L;
-        long chargeAmount = 1000L;
+        long chargeAmount = 10000L;
 
         when(userPointTable.selectById(userId))
                 .thenReturn(new UserPoint(userId, 0L, System.currentTimeMillis()));
@@ -254,7 +254,7 @@ public class PointServiceChargeTest {
     void whenHistorySaveFails_thenRollbackBalanceAndThrowsException() {
         // given
         Long userId = 1L;
-        long chargeAmount = 1000L;
+        long chargeAmount = 10000L;
         UserPoint initPoint = new UserPoint(userId, 0L, System.currentTimeMillis());
         UserPoint updatePoint = new UserPoint(userId, chargeAmount, System.currentTimeMillis());
         when(userPointTable.selectById(userId))
@@ -269,7 +269,7 @@ public class PointServiceChargeTest {
                 .isInstanceOf(PointSaveException.class);
 
         InOrder inOrder = inOrder(userPointTable, pointHistoryTable);
-        inOrder.verify(userPointTable).insertOrUpdate(userId, 1000L);
+        inOrder.verify(userPointTable).insertOrUpdate(userId, 10000L);
         inOrder.verify(pointHistoryTable).insert(eq(userId), eq(chargeAmount), eq(TransactionType.CHARGE), anyLong());
         inOrder.verify(userPointTable).insertOrUpdate(userId, 0L); // 롤백
     }
